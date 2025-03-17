@@ -12,7 +12,6 @@ using System.Text;
 using System.Threading.Tasks;
 using BC = BCrypt.Net.BCrypt;
 
-
 namespace AuthProject.Application.Services
 {
     public class PasswordService : IPasswordService
@@ -37,18 +36,23 @@ namespace AuthProject.Application.Services
             _resetPasswordValidator = resetPasswordValidator;
         }
 
-        public async Task<Result> ForgotPasswordAsync<ForgotPasswordDto>(ForgotPasswordDto model)
+        public async Task<Result> ForgotPasswordAsync<TForgotPassword>(TForgotPassword model)
         {
+            // Type checking
+            if (model is not ForgotPasswordDto forgotPasswordDto)
+            {
+                return Result.Failure("Invalid forgot password model type");
+            }
 
             // Validate the model
-            var validationResult = await _forgotPasswordValidator.ValidateAsync(model);
+            var validationResult = await _forgotPasswordValidator.ValidateAsync(forgotPasswordDto);
             if (!validationResult.IsValid)
             {
                 return Result.Failure(string.Join("; ", validationResult.Errors.Select(e => e.ErrorMessage)));
             }
 
             // Find user by email
-            var user = await _unitOfWork.Users.GetByEmailAsync(model.Email);
+            var user = await _unitOfWork.Users.GetByEmailAsync(forgotPasswordDto.Email);
             if (user == null)
             {
                 // For security reasons, don't reveal that the email doesn't exist
@@ -90,24 +94,30 @@ namespace AuthProject.Application.Services
             }
         }
 
-        public async Task<Result> ResetPasswordAsync<ResetPasswordDto>(ResetPasswordDto model)
+        public async Task<Result> ResetPasswordAsync<TResetPassword>(TResetPassword model)
         {
+            // Type checking
+            if (model is not ResetPasswordDto resetPasswordDto)
+            {
+                return Result.Failure("Invalid reset password model type");
+            }
+
             // Validate the model
-            var validationResult = await _resetPasswordValidator.ValidateAsync(model);
+            var validationResult = await _resetPasswordValidator.ValidateAsync(resetPasswordDto);
             if (!validationResult.IsValid)
             {
                 return Result.Failure(string.Join("; ", validationResult.Errors.Select(e => e.ErrorMessage)));
             }
 
             // Find user by email
-            var user = await _unitOfWork.Users.GetByEmailAsync(model.Email);
+            var user = await _unitOfWork.Users.GetByEmailAsync(resetPasswordDto.Email);
             if (user == null)
             {
                 return Result.Failure("Invalid token or email");
             }
 
             // Find token
-            var token = await _unitOfWork.UserTokens.GetByTokenAsync(model.Token, TokenType.PasswordReset);
+            var token = await _unitOfWork.UserTokens.GetByTokenAsync(resetPasswordDto.Token, TokenType.PasswordReset);
             if (token == null || token.UserId != user.Id || token.IsUsed || token.ExpiryDate < DateTime.UtcNow)
             {
                 return Result.Failure("Invalid token or email");
@@ -121,7 +131,7 @@ namespace AuthProject.Application.Services
                 token.IsUsed = true;
 
                 // Hash new password
-                string passwordHash = HashPassword(model.NewPassword);
+                string passwordHash = HashPassword(resetPasswordDto.NewPassword);
 
                 // Update password
                 user.PasswordHash = passwordHash;
