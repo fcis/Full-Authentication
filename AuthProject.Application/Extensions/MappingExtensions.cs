@@ -1,4 +1,5 @@
 ﻿using AuthProject.Application.DTOs;
+using AuthProject.Domain.Common;
 using AuthProject.Domain.Entities;
 using System;
 using System.Collections.Generic;
@@ -42,6 +43,27 @@ namespace AuthProject.Application.Extensions
                 Username = user.Username,
                 Email = user.Email
             };
+        }
+
+        public static PagedResultDto<TDestination> ToPagedDto<TSource, TDestination>(
+    this PagedResult<TSource> pagedResult,
+    Func<TSource, TDestination> mapper)
+        {
+            return new PagedResultDto<TDestination>
+            {
+                Items = pagedResult.Items.Select(mapper),
+                TotalCount = pagedResult.TotalCount,
+                PageNumber = pagedResult.PageNumber,
+                PageSize = pagedResult.PageSize,
+                TotalPages = pagedResult.TotalPages,
+                HasPreviousPage = pagedResult.HasPreviousPage,
+                HasNextPage = pagedResult.HasNextPage
+            };
+        }
+
+        public static PagedResultDto<UserDto> ToPagedDto(this PagedResult<User> pagedResult)
+        {
+            return pagedResult.ToPagedDto(user => user.ToDto());
         }
     }
 }
